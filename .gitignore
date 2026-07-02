@@ -1,0 +1,33 @@
+# Game binaries & compiled outputs — NEVER commit (copyrighted / huge)
+*.dso
+*.aod
+gui.aod
+gui.aod.*
+ZRPG.exe
+ZRPG.exe.*
+scripts.aod
+
+# Build output & scratch directories
+src/scaling/_zipstage/
+_zipstage/
+decompiled/
+zip_update/
+work/
+build/output/
+
+# Tooling downloaded as prerequisites (not vendored)
+untorque/
+tcc/
+tcc.zip
+
+# Python
+__pycache__/
+*.pyc
+
+# OS / editor cruft
+Thumbs.db
+.DS_Store
+*.swp
+*~
+.vscode/
+.idea/

@@ -1,0 +1,33 @@
+MIT License
+
+Copyright (c) 2026 Medo Haleem
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+NOTE: This license covers only the original source code and build scripts in
+this repository (the proxy DLL source, the scaling scripts, the LAA patcher,
+the build orchestrator, and the documentation).
+
+It does NOT cover the game "Dead State", its executable (ZRPG.exe), its compiled
+script files (.dso), its GUI archives (gui.aod), or any of its art/audio/text
+assets. "Dead State" is © DoubleBear Productions. All game assets remain the
+property of their respective owners. This mod is a fan-made, non-commercial
+modification; users must own a legitimate copy of the game to use it.
