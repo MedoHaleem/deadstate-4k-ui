@@ -51,13 +51,21 @@ What it does, step by step:
    flag in the PE header; writes `ZRPG.exe.bak` first).
 3. **Proxy DLL** — compiles `d3d9.dll` with tcc, or copies the prebuilt one if tcc
    is not supplied.
-4. **GUI scaling** — runs the layout scaler over all eligible `.gui.dso` files.
-5. **Profiles** — (see "Profiles" below — currently a manual sub-step).
-6. **Textures** — generates the 54 `_1800` texture variants.
-7. **Inject** — inserts the textures into `art\gui.aod`.
-8. **Install** — copies the 12 loose `.gui.dso` overrides into `art\gui\`.
+4. **GUI scaling** — runs the layout scaler over all eligible `.gui.dso` files
+   (positions, extents, `minExtent`, and the `columns` field — see TECHNICAL §2/§7).
+5. **Profiles** — decompiles the stock engine profiles
+   (`core\art\gui\profiles.cs.dso`), 2×-scales `fontSize`/`textOffset`/
+   `borderThickness`, recompiles in place.
+6. **Message-box fix** — compiles the game-profiles source (with the new
+   `SegoePrint_Left_MsgBox` profile) and the four repointed message-box dialogs,
+   and installs them to all required surfaces (see TECHNICAL §8).
+7. **Textures** — generates the 54 `_1800` texture variants.
+8. **Inject** — inserts the textures into `art\gui.aod`.
+9. **Install** — copies the 12 loose `.gui.dso` overrides into `art\gui\`.
 
-You can run individual steps with `-Steps`, e.g. `-Steps Textures,Inject`.
+You can run individual steps with `-Steps`, e.g. `-Steps Textures,Inject`. The
+available steps are: `Backup`, `LAA`, `Proxy`, `GUIs`, `Profiles`, `MsgBox`,
+`Textures`, `Inject`, `Install` (or `All`).
 
 ---
 
@@ -110,17 +118,29 @@ C:\tools\tcc\tcc.exe -shared -o d3d9.dll src\proxy\d3d9_proxy.c -lkernel32
 > rebuild with tcc, you'll need to do the same rewrite, or the game won't resolve
 > the import. Easiest path: just use the prebuilt `build\d3d9.dll`.
 
-### Profiles
+### Profiles (engine)
 
-Font scaling is the same decompile → scale → compile flow, applied to two files:
+Run by the `Profiles` step of the orchestrator. Decompile the stock loose
+`core\art\gui\profiles.cs.dso`, double every `fontSize`/`textOffset`/
+`borderThickness` value, recompile, and replace the loose file in place. See
+[`docs/TECHNICAL.md`](TECHNICAL.md) §1 for the exact fields.
 
-- **Engine profiles** — `core\art\gui\profiles.cs.dso` (loose file). Decompile,
-  double every `fontSize`/`textOffset`/`borderThickness` value, recompile, replace.
-- **Game profiles** — `gameProfiles.english.cs.dso` (inside `art\gui.aod`).
-  Decompile from `gui.aod.bak`, same scaling, recompile, inject with 7-Zip.
+### Message-box dialogs
 
-These transforms are small and well-defined; the orchestrator flags this step for
-manual execution. See [`docs/TECHNICAL.md`](TECHNICAL.md) §1 for the exact fields.
+Run by the `MsgBox` step of the orchestrator. The game-profiles source
+(`src\profiles\gameProfiles.english.cs`) already carries the 2×-scaled values
+**and** the mod's `SegoePrint_Left_MsgBox` profile (fontSize 35 — the native
+value, since these dialogs render in unscaled coordinate space; see TECHNICAL §8).
+The four dialog sources in `src\msgbox\` repoint their text controls at that
+profile. The step compiles all five and installs them:
+
+- `gameProfiles.english.cs.dso` → **both** the loose `art\gui\` copy **and** the
+  `gui.aod` ZIP-root entry (the loose file overrides the ZIP entry, so both must
+  match).
+- The four dialog `.ed.gui.edso` → `core\scripts\gui\messageBoxes\`.
+
+Load order is safe — `client\init.cs.dso` execs `gameProfiles` before the
+message-box dialogs.
 
 ---
 

@@ -3,6 +3,11 @@
 Makes the entire Dead State UI readable at 3840×2160 (4K), and fixes the multi-core
 launch crash on modern CPUs. **Manual install** — no scripts, just copy files.
 
+> **Extracting the download:** the mod is distributed as a `.7z` archive for a smaller
+> download. Extract it with **[7-Zip](https://www.7-zip.org/)** (free) before installing —
+> right-click the `.7z` → **7-Zip → Extract to "DeadState-4K-UI\"**. Windows can't open
+> `.7z` files on its own.
+
 ---
 
 ## ⚠️ Before you start: back up your game
@@ -83,10 +88,15 @@ removes any mod-added ones automatically.)
 
 ## What this mod changes
 
-- **2× scales all UI** — fonts, control positions/extents, and panels across 69 GUI screens
-  (dialogue, character/inventory/map/loot screens, message boxes, the pause menu, options, etc.).
+- **2× scales all UI** — fonts, control positions/extents, list-column offsets, and panels
+  across ~60 GUI screens (dialogue, character/inventory/map/loot screens, message boxes, the
+  pause menu, options, etc.).
+- **Readable message-box dialogs** — the quit-confirm Yes/No and other popups use a dedicated
+  font profile so text fits inside the box at 4K (fixed; previously overflowed).
+- **Aligned list columns** — `GuiTextListCtrl` column offsets (shelter job board, daily results,
+  shelter screen) are scaled to match the 2×-spaced headers (fixed; previously misaligned).
 - **54 high-resolution texture variants** (`_1800`) for the party panel, AP pips, and noise meter.
-- **2 panel backgrounds re-rendered at 4K** (`messageBox_bg`, `DS_options_screen_bg`).
+- **1 panel background re-rendered at 4K** (`DS_options_screen_bg`).
 - **>4-core launch crash fix** — a 2 KB proxy `d3d9.dll` caps process affinity to cores 0–3
   before the engine's crashing CPU enumeration runs. Works on any launch path (Steam,
   shortcut, or the exe directly).
@@ -108,7 +118,10 @@ removes any mod-added ones automatically.)
 | Text still tiny | Set resolution to 3840×2160 in Options → Graphics. |
 | Want a clean slate | Use Steam → Right-click Dead State → Properties → Installed Files → **Verify integrity of game files**, then reinstall the mod. |
 
-> **Known issues (not fixed by this mod):** the quit-confirmation Yes/No buttons still overlap the message text, and dropdown selected-text remains invisible. Both are side-effects of the 2× scaling that this mod has **not** resolved.
+> **Known issue (not fixed by this mod):** dropdown selected-text remains invisible in
+> some `GuiPopUpMenuCtrl` dropdowns — a side-effect of the 2× font scaling clipping
+> to the native-size arrow cell. The quit-confirmation (Yes/No) and other message-box
+> dialogs **are** fixed and render correctly.
 
 ## Credits
 

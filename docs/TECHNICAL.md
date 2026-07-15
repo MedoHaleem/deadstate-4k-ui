@@ -52,7 +52,8 @@ Each `.gui.dso` defines a tree of controls with `position`, `extent`, and
 
 1. Extracts each `.gui.dso` from the factory `gui.aod.bak`.
 2. Decompiles it to TorqueScript.
-3. 2×-scales every `position`/`extent`/`minExtent` via regex.
+3. 2×-scales every `position`/`extent`/`minExtent` value, and the `columns` field
+   of `GuiTextListCtrl` controls (see §7).
 4. Recompiles and stages it for injection.
 
 Two engine quirks are handled:
@@ -168,11 +169,67 @@ reference patch exactly.
 
 ## 6. Bitmap backgrounds (`wrap=0`)
 
-A `GuiBitmapCtrl` with `wrap = 0` renders its PNG at **native pixel size**. The
-control's extent defines the child coordinate space but doesn't resize the bitmap.
-After 2×-scaling a GUI layout, if the bitmap PNG is left at native resolution, the
-2×-scaled children misalign with the visible (native-size) bitmap.
+In T3D v3.5.x (DSO v46 era), a `GuiBitmapCtrl` with `wrap = 0` calls
+`drawBitmapStretch(texture, controlExtent)` in `onRender` — the bitmap is
+**stretched to fill the control's extent**, not rendered at native pixel size.
+(Verified against the v3.5.1 source `guiBitmapCtrl.cpp`.) So after 2×-scaling a
+GUI layout, setting the control's extent to the desired visible box size is what
+matters; the PNG stretches to match.
 
-Fix: generate a 2× (`_4k`) PNG variant, add it to `gui.aod`, and re-point the
-control's `bitmap` field at it. Applied to the Options-screen background
-(`DS_options_screen_bg`) and the message-box background (`messageBox_bg`).
+For sharper results on photographic backgrounds, a 2× (`_4k`) PNG variant can be
+generated, added to `gui.aod`, and the control's `bitmap` field re-pointed at it
+— a better stretch source, but not required for sizing. Applied to the
+Options-screen background (`DS_options_screen_bg`).
+
+---
+
+## 7. The `columns` field of `GuiTextListCtrl`
+
+`GuiTextListCtrl` controls (the game's tabular lists — the shelter job board,
+daily results, etc.) carry a `columns` field: a space-separated list of per-column
+X-offsets in the control's coordinate space (e.g. `columns = "0 120 250"`). Every
+token is an X position and must be 2×-scaled like any other — otherwise the list
+body's columns stay clamped at 1080p spacing while the header labels above them
+(separate `fbHLMLTextCtrl`s whose `position` *was* 2×'d) spread to 4K spacing,
+producing misaligned list rows.
+
+The scaler's pass-2 handles this with a dedicated regex that matches the `columns`
+value, splits it on whitespace, multiplies every numeric token by the factor, and
+rejoins — independent of the `position`/`extent`/`minExtent` transform and of the
+texhandle skip-set. Variable token counts are handled (lists range from 2 to 3+
+columns).
+
+---
+
+## 8. Message-box dialogs (the font-profile fix)
+
+The stock T3D message-box dialogs (`MessageBoxYesNoDlg`, `…Ok`, `…YesNoCancel`,
+`…OkCancel`, in `core/scripts/gui/messageBoxes/*.ed.gui`) are a **separate system**
+from `GenericMessageBox` and were never 2×-scaled by the layout pass — they still
+render at native `1024 768` extents. But the font profiles they referenced
+(`SegoePrint_Left_35` → fontSize 70, `…_25` → 50, in `gameProfiles.english.cs.dso`)
+*were* 2×-scaled. The result: 2×-sized fonts crammed in a 1×-sized dialog —
+illegible text overflowing the box.
+
+**Fix — a dedicated small-font profile.** Since these dialogs render in native
+(unscaled) coordinate space, the correct font is the original native size, not the
+2× value. A new singleton `SegoePrint_Left_MsgBox` (fontSize 35) is added to
+`gameProfiles.english.cs.dso`, and the four dialogs' text controls are repointed
+at it. Surgical: `SegoePrint_Left_35` is shared with `CharScreen` (which *is*
+2×-scaled and needs 70), so the shared profile is left alone — only the dialogs
+move to the dedicated one.
+
+**Install surfaces (three, all required):**
+
+1. `gameProfiles.english.cs.dso` → **both** the loose `art/gui/` copy AND the
+   `gui.aod` ZIP-root entry. The loose file overrides the ZIP entry (VFS), so both
+   must match or the loose one silently wins.
+2. The four dialog `.ed.gui.edso` → loose in `core/scripts/gui/messageBoxes/`
+   (loose files are honored under `core/`).
+3. **Load order is safe:** `client/init.cs.dso` execs `gameProfiles` (line 7)
+   *before* `messageBox.ed.cs` (line 8), so the new profile exists before the
+   dialogs reference it.
+
+Sources in the repo: `src/profiles/gameProfiles.english.cs` (the 2×-scaled game
+profiles + the `SegoePrint_Left_MsgBox` profile) and `src/msgbox/*.ed.gui` (the
+four repointed dialogs). Build step: `build.ps1 -Steps MsgBox`.

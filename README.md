@@ -16,15 +16,17 @@ crashing on machines with more than four CPU cores.
 
 ## What the mod does
 
-1. **2× UI scaling** — fonts, control positions/extents, and panels across ~60 GUI
-   screens (dialogue, character/inventory/map/loot screens, message boxes, the
-   pause menu, options, etc.).
-2. **54 high-resolution texture variants** (`_1800`) for the in-game HUD elements
+1. **2× UI scaling** — fonts, control positions/extents, list-column offsets, and
+   panels across ~60 GUI screens (dialogue, character/inventory/map/loot screens,
+   the pause menu, options, etc.).
+2. **Readable message-box dialogs** — the quit-confirm Yes/No and other popups use a
+   dedicated font profile so text fits inside the box at 4K.
+3. **54 high-resolution texture variants** (`_1800`) for the in-game HUD elements
    driven by the engine's "texhandle" mechanism (party panel, AP pips, noise meter).
-3. **>4-core launch crash fix** — a 2 KB proxy `d3d9.dll` that caps process affinity
+4. **>4-core launch crash fix** — a 2 KB proxy `d3d9.dll` that caps process affinity
    to cores 0–3 before the engine's crashing CPU-enumeration code runs. Works on any
    launch path (Steam, shortcut, or the exe directly).
-4. **4 GB Large Address Aware patch** on `ZRPG.exe` for stability with larger
+5. **4 GB Large Address Aware patch** on `ZRPG.exe` for stability with larger
    textures.
 
 See [`docs/TECHNICAL.md`](docs/TECHNICAL.md) for the engine internals behind each fix.
@@ -37,11 +39,14 @@ See [`docs/TECHNICAL.md`](docs/TECHNICAL.md) for the engine internals behind eac
 |---|---|
 | [`src/proxy/`](src/proxy/) | C source for the `d3d9` proxy DLL (the core-crash fix) + a load test. |
 | [`src/scaling/`](src/scaling/) | The scaling engine: GUI layout scaler, texture generator, and the LAA patcher. |
+| [`src/profiles/`](src/profiles/) | The 2×-scaled game-profiles source (with the mod's `SegoePrint_Left_MsgBox` profile). |
+| [`src/msgbox/`](src/msgbox/) | The four message-box dialogs repointed to the dedicated font profile. |
 | [`build/build.ps1`](build/build.ps1) | One-shot orchestrator that rebuilds the whole mod from a stock install. |
 | [`build/d3d9.dll`](build/d3d9.dll) | Prebuilt proxy DLL (2 KB — the only committed binary; rebuildable from source). |
 | [`docs/BUILD.md`](docs/BUILD.md) | How to build everything from source (prerequisites + step-by-step). |
 | [`docs/TECHNICAL.md`](docs/TECHNICAL.md) | Engine/reverse-engineering notes: why each fix is needed and how it works. |
-| [`release/README.md`](release/README.md) | The end-user install guide shipped inside the mod ZIP. |
+| [`release/README.md`](release/README.md) | The end-user install guide shipped inside the mod archive. |
+| [`CHANGELOG.md`](CHANGELOG.md) | Release history. |
 
 **This repo does not contain any game assets.** No `.dso`, no `gui.aod`, no
 decompiled game code, no game binaries (other than the rebuildable 2 KB proxy).
