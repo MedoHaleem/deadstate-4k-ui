@@ -8,10 +8,13 @@
       2. Applies the Large Address Aware flag to ZRPG.exe (patch_laa.py).
       3. Builds the d3d9 proxy DLL (tcc) from src/proxy/d3d9_proxy.c.
       4. 2x-scales the GUI layout files (scale_guis.ps1 + scale_guis_retry.ps1).
-      5. 2x-scales the font profiles (engine + game profiles).
-      6. Generates the 54 _1800 texhandle texture variants (gen_1800_textures.py).
-      7. Injects all scaled assets into art/gui.aod (7-Zip).
-      8. Installs the loose GUI .dso overrides + scaled profiles + proxy DLL.
+      5. 2x-scales the engine font profiles (decompile -> scale -> compile).
+      6. Applies the message-box font fix: compiles the scaled game profiles
+         (with the new SegoePrint_Left_MsgBox profile) and the 4 repointed
+         message-box dialogs, and installs them.
+      7. Generates the 54 _1800 texhandle texture variants (gen_1800_textures.py).
+      8. Injects the textures into art/gui.aod (7-Zip).
+      9. Installs the loose GUI .dso overrides + proxy DLL.
 
     See docs/BUILD.md for prerequisites and step-by-step instructions. This
     orchestrator exists to document the full pipeline; the individual scripts
@@ -48,7 +51,7 @@ param(
     [string]$Tcc       = "",
     [string]$SevenZip  = "7z.exe",
     [string]$Python    = "python",
-    [ValidateSet("All","Backup","LAA","Proxy","GUIs","Profiles","Textures","Inject","Install")]
+    [ValidateSet("All","Backup","LAA","Proxy","GUIs","Profiles","MsgBox","Textures","Inject","Install")]
     [string[]]$Steps   = @("All")
 )
 
@@ -125,27 +128,93 @@ if (Test-Step "GUIs") {
         -GameDir $GameDir -WorkRoot $workRoot -Untorque $Untorque -SevenZip $SevenZip
 }
 
-# --- Step 5: Scale font profiles -------------------------------------------
-# Profiles scaling uses the same decompile->scale->compile->install flow but on
-# the two profile files. This is scripted inline (small, well-defined transforms:
-# fontSize, textOffset, borderThickness x2). See docs/TECHNICAL.md section 1.
+# --- Step 5: Scale engine font profiles ------------------------------------
+# The ENGINE profiles (core\art\gui\profiles.cs.dso) are decompiled from the stock
+# loose file, 2x-scaled (fontSize/textOffset/borderThickness), and recompiled in
+# place. This uses the same regex-driven scaling approach as the GUI scaler but on
+# a single file. The GAME profiles (gameProfiles.english.cs.dso) are handled in the
+# MessageBox step below, because they carry a mod-specific profile addition
+# (SegoePrint_Left_MsgBox) that cannot be derived by scaling a stock file alone.
 if (Test-Step "Profiles") {
-    Write-Step 5 "2x-scaling font profiles (engine + game profiles)"
-    Write-Host "  Engine profiles: core\art\gui\profiles.cs.dso" -ForegroundColor Yellow
-    Write-Host "  Game profiles:   art\gui.aod ! gameProfiles.english.cs.dso" -ForegroundColor Yellow
-    Write-Host "  (Run the profile scaler manually for now - see docs/BUILD.md section 'Profiles'.)" -ForegroundColor Yellow
+    Write-Step 5 "2x-scaling engine font profiles (core\art\gui\profiles.cs.dso)"
+    $engineProfDso = Join-Path $GameDir "core\art\gui\profiles.cs.dso"
+    $profStage     = Join-Path $workRoot "profiles"
+    if (-not (Test-Path $profStage)) { New-Item -ItemType Directory -Path $profStage -Force | Out-Null }
+    $origCs = Join-Path $profStage "profiles.orig.cs"
+    $scaledCs = Join-Path $profStage "profiles.2x.cs"
+
+    & $Untorque decompile $engineProfDso $origCs 2>&1 | Out-Null
+    if (-not (Test-Path $origCs)) { throw "Failed to decompile engine profiles." }
+
+    # Scale fontSize/textOffset/borderThickness x2 in the decompiled source.
+    $lines = Get-Content $origCs
+    $scaled = $lines | ForEach-Object {
+        [regex]::Replace($_, '(fontSize|textOffset|borderThickness)\s*=\s*(\d+)', {
+            param($m)
+            $v = [Math]::Round([double]$m.Groups[2].Value * 2.0)
+            "$($m.Groups[1].Value) = $v"
+        })
+    }
+    Set-Content -Path $scaledCs -Value ($scaled -join "`n") -NoNewline
+
+    & $Untorque compile $scaledCs $engineProfDso 2>&1 | Out-Null
+    Write-Host "  Scaled + installed engine profiles -> $engineProfDso" -ForegroundColor Green
 }
 
-# --- Step 6: Generate _1800 textures ---------------------------------------
+# --- Step 6: Message-box font fix (game profiles + 4 dialogs) ---------------
+# The game profiles source under src\profiles\ already carries the 2x-scaled
+# values AND the mod's SegoePrint_Left_MsgBox profile (fontSize 35 -- the native
+# value, since these dialogs render in unscaled coordinate space). The 4 dialog
+# sources under src\msgbox\ repoint their text controls at that profile. This step
+# compiles all 5 and installs them to the three required surfaces (see
+# docs/TECHNICAL.md "Message-box dialogs"). gameProfiles installs to BOTH the
+# loose art\gui\ copy AND the gui.aod ZIP root -- the loose file overrides the ZIP
+# entry (VFS), so both must match or the loose one silently wins.
+if (Test-Step "MsgBox") {
+    Write-Step 6 "Applying message-box font fix (game profiles + 4 dialogs)"
+    $gpSrc      = Join-Path $repoRoot "src\profiles\gameProfiles.english.cs"
+    $mbDir      = Join-Path $repoRoot "src\msgbox"
+    $msgDest    = Join-Path $GameDir "core\scripts\gui\messageBoxes"
+    $gpLooseDst = Join-Path $GameDir "art\gui\gameProfiles.english.cs.dso"
+    $gpStage    = Join-Path $workRoot "msgbox_stage"
+    if (-not (Test-Path $gpStage)) { New-Item -ItemType Directory -Path $gpStage -Force | Out-Null }
+
+    # Compile game profiles -> install to both loose + ZIP-root surfaces.
+    $gpDso = Join-Path $gpStage "gameProfiles.english.cs.dso"
+    & $Untorque compile $gpSrc $gpDso 2>&1 | Out-Null
+    if (-not (Test-Path $gpDso)) { throw "Failed to compile game profiles." }
+    Copy-Item $gpDso $gpLooseDst -Force
+    Write-Host "  Installed game profiles (loose) -> $gpLooseDst" -ForegroundColor Green
+
+    Push-Location $gpStage
+    try {
+        & $SevenZip u $aodPath "gameProfiles.english.cs.dso" -mx=1 -y | Out-Null
+    } finally { Pop-Location }
+    Write-Host "  Installed game profiles (ZIP root) -> art\gui.aod" -ForegroundColor Green
+
+    # Compile the 4 repointed dialogs -> install to core\scripts\gui\messageBoxes\.
+    if (-not (Test-Path $msgDest)) { New-Item -ItemType Directory -Path $msgDest -Force | Out-Null }
+    foreach ($name in "messageBoxOk","messageBoxYesNo","messageBoxYesNoCancel","messageBoxOkCancel") {
+        $guiSrc = Join-Path $mbDir "$name.ed.gui"
+        $guiDso = Join-Path $msgDest "$name.ed.gui.edso"
+        & $Untorque compile $guiSrc $guiDso 2>&1 | Out-Null
+        if (-not (Test-Path $guiDso)) { throw "Failed to compile dialog: $name" }
+        Write-Host "  Installed dialog -> $name.ed.gui.edso" -ForegroundColor Green
+    }
+    Write-Host "  NOTE: gameProfiles is installed before the dialogs reference the new" -ForegroundColor Yellow
+    Write-Host "        profile; load order is safe (init.cs execs gameProfiles first)." -ForegroundColor Yellow
+}
+
+# --- Step 7: Generate _1800 textures ---------------------------------------
 if (Test-Step "Textures") {
-    Write-Step 6 "Generating 54 _1800 (2x) texhandle texture variants"
+    Write-Step 7 "Generating 54 _1800 (2x) texhandle texture variants"
     & $Python (Join-Path $repoRoot "src\scaling\gen_1800_textures.py") --game-dir $GameDir
     if ($LASTEXITCODE -ne 0) { throw "Texture generation failed." }
 }
 
-# --- Step 7: Inject scaled assets into gui.aod -----------------------------
+# --- Step 8: Inject scaled assets into gui.aod -----------------------------
 if (Test-Step "Inject") {
-    Write-Step 7 "Injecting _1800 textures into art/gui.aod"
+    Write-Step 8 "Injecting _1800 textures into art/gui.aod"
     $stage = Join-Path $repoRoot "src\scaling\_zipstage"
     if (Test-Path $stage) {
         Push-Location $stage
@@ -158,9 +227,9 @@ if (Test-Step "Inject") {
     }
 }
 
-# --- Step 8: Install loose files -------------------------------------------
+# --- Step 9: Install loose files -------------------------------------------
 if (Test-Step "Install") {
-    Write-Step 8 "Installing loose GUI .dso overrides into art\gui\"
+    Write-Step 9 "Installing loose GUI .dso overrides into art\gui\"
     # The 12 GUIs that ship loose (engine loads these over the ZIP entries) are
     # copied from the scaler's staging dir into the game's art\gui\ folder.
     $staging = Join-Path $workRoot "zip_update"
