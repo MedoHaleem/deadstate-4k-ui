@@ -82,14 +82,28 @@ function Scale-GuiContent {
             $blockStack.RemoveAt($blockStack.Count - 1)
         }
     }
+    # Pass 2: scale position/extent/minExtent + the `columns` field; skip texhandle extents.
+    # `columns` (GuiTextListCtrl) is a space-separated list of per-column X-offsets with a
+    # variable token count; every token is an X position and must be scaled like one, or list
+    # bodies stay clamped at 1080p spacing under 2x-spread headers. Mirrors scale_guis.ps1.
     $pattern = '(position|extent|minExtent)\s*=\s*"(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)"'
+    $columnsPattern = '(?<=columns\s*=\s*")(-?\d+(?:\.\d+)?(?:\s+-?\d+(?:\.\d+)?)*)(")'
     $result = New-Object System.Collections.Generic.List[string]
     for ($i = 0; $i -lt $Lines.Count; $i++) {
         if ($skipLines.ContainsKey($i)) {
             $result.Add($Lines[$i])
             continue
         }
-        $modified = [regex]::Replace($Lines[$i], $pattern, {
+        $line = $Lines[$i]
+        if ($line -match 'columns\s*=\s*"') {
+            $line = [regex]::Replace($line, $columnsPattern, {
+                param($m)
+                $tokens = $m.Groups[1].Value -split '\s+'
+                $scaled = $tokens | ForEach-Object { [Math]::Round([double]$_ * 2.0) }
+                "$($scaled -join ' ')`""
+            })
+        }
+        $modified = [regex]::Replace($line, $pattern, {
             param($m)
             $field = $m.Groups[1].Value
             $x = [Math]::Round([double]$m.Groups[2].Value * 2.0)

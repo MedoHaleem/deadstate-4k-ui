@@ -111,15 +111,30 @@ function Scale-GuiContent {
         }
     }
 
-    # Pass 2: scale all position/extent/minExtent, skip texhandle extents
+    # Pass 2: scale position/extent/minExtent + the `columns` field; skip texhandle extents.
+    # `columns` (GuiTextListCtrl) is a space-separated list of per-column X-offsets with a
+    # variable token count (e.g. "0 120 250"); every token is an X position and must be scaled
+    # like any other X coordinate, or list bodies stay clamped at 1080p spacing under 2x-spread
+    # headers. Unrelated to texhandle extents, so it is never in $skipLines.
     $pattern = '(position|extent|minExtent)\s*=\s*"(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)"'
+    $columnsPattern = '(?<=columns\s*=\s*")(-?\d+(?:\.\d+)?(?:\s+-?\d+(?:\.\d+)?)*)(")'
     $result = New-Object System.Collections.Generic.List[string]
     for ($i = 0; $i -lt $Lines.Count; $i++) {
         if ($skipLines.ContainsKey($i)) {
             $result.Add($Lines[$i])
             continue
         }
-        $modified = [regex]::Replace($Lines[$i], $pattern, {
+        $line = $Lines[$i]
+        # Scale the columns list first (every numeric token xF), then position/extent/minExtent.
+        if ($line -match 'columns\s*=\s*"') {
+            $line = [regex]::Replace($line, $columnsPattern, {
+                param($m)
+                $tokens = $m.Groups[1].Value -split '\s+'
+                $scaled = $tokens | ForEach-Object { [Math]::Round([double]$_ * $F) }
+                "$($scaled -join ' ')`""
+            })
+        }
+        $modified = [regex]::Replace($line, $pattern, {
             param($m)
             $field = $m.Groups[1].Value
             $x = [Math]::Round([double]$m.Groups[2].Value * $F)
