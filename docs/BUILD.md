@@ -58,8 +58,9 @@ What it does, step by step:
    `borderThickness`, recompiles in place.
 6. **Message-box fix** — compiles the game-profiles source (with the new
    `SegoePrint_Left_MsgBox` profile) and the four repointed message-box dialogs,
-   and installs them to all required surfaces (see TECHNICAL §8).
-7. **Textures** — generates the 54 `_1800` texture variants.
+   and installs them to all required surfaces (see TECHNICAL §9).
+7. **Textures** — generates the 54 `_1800` texture variants and the 2×
+   tiled skill progress/cost bitmaps (see TECHNICAL §8).
 8. **Inject** — inserts the textures into `art\gui.aod`.
 9. **Install** — copies the 12 loose `.gui.dso` overrides into `art\gui\`.
 
@@ -130,7 +131,7 @@ Run by the `Profiles` step of the orchestrator. Decompile the stock loose
 Run by the `MsgBox` step of the orchestrator. The game-profiles source
 (`src\profiles\gameProfiles.english.cs`) already carries the 2×-scaled values
 **and** the mod's `SegoePrint_Left_MsgBox` profile (fontSize 35 — the native
-value, since these dialogs render in unscaled coordinate space; see TECHNICAL §8).
+value, since these dialogs render in unscaled coordinate space; see TECHNICAL §9).
 The four dialog sources in `src\msgbox\` repoint their text controls at that
 profile. The step compiles all five and installs them:
 

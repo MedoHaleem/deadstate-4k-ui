@@ -95,7 +95,8 @@ removes any mod-added ones automatically.)
   font profile so text fits inside the box at 4K (fixed; previously overflowed).
 - **Aligned list columns** — `GuiTextListCtrl` column offsets (shelter job board, daily results,
   shelter screen) are scaled to match the 2×-spaced headers (fixed; previously misaligned).
-- **54 high-resolution texture variants** (`_1800`) for the party panel, AP pips, and noise meter.
+- **54 high-resolution texture variants** (`_1800`) for the party panel, AP pips, and noise meter,
+  plus the 2× skill progress/cost bitmaps used by the character and character-creation screens.
 - **1 panel background re-rendered at 4K** (`DS_options_screen_bg`).
 - **>4-core launch crash fix** — a 2 KB proxy `d3d9.dll` caps process affinity to cores 0–3
   before the engine's crashing CPU enumeration runs. Works on any launch path (Steam,

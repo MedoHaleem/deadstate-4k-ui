@@ -22,7 +22,9 @@ crashing on machines with more than four CPU cores.
 2. **Readable message-box dialogs** — the quit-confirm Yes/No and other popups use a
    dedicated font profile so text fits inside the box at 4K.
 3. **54 high-resolution texture variants** (`_1800`) for the in-game HUD elements
-   driven by the engine's "texhandle" mechanism (party panel, AP pips, noise meter).
+   driven by the engine's "texhandle" mechanism (party panel, AP pips, noise meter),
+   plus 2× skill progress/cost bitmaps for the character and
+   character-creation screens.
 4. **>4-core launch crash fix** — a 2 KB proxy `d3d9.dll` that caps process affinity
    to cores 0–3 before the engine's crashing CPU-enumeration code runs. Works on any
    launch path (Steam, shortcut, or the exe directly).

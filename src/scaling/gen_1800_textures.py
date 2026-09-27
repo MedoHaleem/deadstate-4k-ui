@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Regenerate the 54 _1800 (2x) texhandle texture variants and stage them for
-injection into art/gui.aod.
+"""Regenerate the 54 _1800 (2x) texhandle texture variants plus the scaled
+character-screen skill progress bitmap and stage them for injection into
+art/gui.aod.
 
 WHY THIS EXISTS
 ---------------
@@ -14,7 +15,10 @@ is 1800, so getFittingRes(base, 1800) selects a `_1800` file over the stock
 control -- renders at 2x automatically. No script hook, no exe patch.
 
 This script reads each stock `_1080.png` from art/gui.aod, 2x-upscales it with
-Lanczos resampling (Pillow), and stages the `_1800.png` outputs.
+Lanczos resampling (Pillow), and stages the `_1800.png` outputs. The character
+screen's skill progress controls are also 2x-scaled by the GUI pass, but their
+bitmap uses `wrap = 1` rather than `wrap = 0`; its source bitmap therefore has
+to be upscaled in place or the engine tiles the 1x image across the 2x control.
 
 PREREQUISITES
 -------------
@@ -59,7 +63,9 @@ def main():
     default_game = r"C:\Program Files (x86)\Steam\steamapps\common\Dead State"
     default_stage = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_zipstage")
 
-    ap = argparse.ArgumentParser(description="Generate 2x (_1800) texhandle textures.")
+    ap = argparse.ArgumentParser(
+        description="Generate 2x (_1800) texhandle and character-screen textures."
+    )
     ap.add_argument("--game-dir", default=default_game,
                     help="Dead State install path (default: %(default)s)")
     ap.add_argument("--stage-dir", default=default_stage,
@@ -76,8 +82,29 @@ def main():
         shutil.rmtree(args.stage_dir)
 
     jobs = build_job_list()
+    # Tiled (wrap=1) bitmaps behind scaler-doubled extents. Wrapping tiles
+    # rather than stretches, so leaving the source at 1x doubles the tile
+    # count at 4K (the "double rows of tiny marks" bug on the skill screens).
+    # Sources are read from the factory backup so rerunning the build never
+    # upscales an already-upscaled in-place asset a second time.
+    # Audit note: the only other wrap=1 bitmaps in loaded GUIs are flat
+    # translucent shade scrims (black_semi_dark.png, shade.png) that tile
+    # seamlessly -- visually identical at any tile count, left at 1x.
+    fixed_jobs = [
+        ("panels/CharScreen_Skill_Progress1080.png",
+         "panels/CharScreen_Skill_Progress1080.png"),
+        ("panels/CharCreationScreen_Skill_Progress900.png",
+         "panels/CharCreationScreen_Skill_Progress900.png"),
+        ("panels/CharCreationScreen_Skill_Cost_900.png",
+         "panels/CharCreationScreen_Skill_Cost_900.png"),
+    ]
+    source_aod = aod
+    backup_aod = aod + ".bak"
+    if os.path.isfile(backup_aod):
+        source_aod = backup_aod
+
     generated, missing = 0, []
-    with zipfile.ZipFile(aod, "r") as z:
+    with zipfile.ZipFile(aod, "r") as z, zipfile.ZipFile(source_aod, "r") as source_z:
         for base in jobs:
             src = base + "_1080.png"
             try:
@@ -91,6 +118,23 @@ def main():
             buf = io.BytesIO()
             img_up.save(buf, format="PNG")
             dst = os.path.join(args.stage_dir, (base + "_1800.png").replace("/", os.sep))
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            with open(dst, "wb") as f:
+                f.write(buf.getvalue())
+            generated += 1
+
+        for src, dst_name in fixed_jobs:
+            try:
+                src_bytes = source_z.read(src)
+            except KeyError:
+                missing.append(src)
+                continue
+            img = Image.open(io.BytesIO(src_bytes)).convert("RGBA")
+            w, h = img.size
+            img_up = img.resize((w * args.factor, h * args.factor), Image.LANCZOS)
+            buf = io.BytesIO()
+            img_up.save(buf, format="PNG")
+            dst = os.path.join(args.stage_dir, dst_name.replace("/", os.sep))
             os.makedirs(os.path.dirname(dst), exist_ok=True)
             with open(dst, "wb") as f:
                 f.write(buf.getvalue())

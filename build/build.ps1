@@ -12,7 +12,8 @@
       6. Applies the message-box font fix: compiles the scaled game profiles
          (with the new SegoePrint_Left_MsgBox profile) and the 4 repointed
          message-box dialogs, and installs them.
-      7. Generates the 54 _1800 texhandle texture variants (gen_1800_textures.py).
+      7. Generates the 54 _1800 texhandle variants and the 2x tiled
+          skill progress/cost bitmaps (gen_1800_textures.py).
       8. Injects the textures into art/gui.aod (7-Zip).
       9. Installs the loose GUI .dso overrides + proxy DLL.
 
@@ -207,7 +208,7 @@ if (Test-Step "MsgBox") {
 
 # --- Step 7: Generate _1800 textures ---------------------------------------
 if (Test-Step "Textures") {
-    Write-Step 7 "Generating 54 _1800 (2x) texhandle texture variants"
+    Write-Step 7 "Generating 2x texhandle and tiled skill bitmaps"
     & $Python (Join-Path $repoRoot "src\scaling\gen_1800_textures.py") --game-dir $GameDir
     if ($LASTEXITCODE -ne 0) { throw "Texture generation failed." }
 }

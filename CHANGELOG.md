@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- **Fixed:** skill progress/cost bars tiled their stock bitmaps across the
+  scaler-expanded controls, producing double rows of tiny red marks — first on
+  the character (level-up) screen, then on the character-creation screen when
+  assigning starting skill points. The texture build now injects 2× replacements
+  for all three affected bitmaps (audited across all 63 loaded GUIs; the only
+  other `wrap = 1` bitmaps are flat shade scrims that tile seamlessly and are
+  unaffected).
+
 ## v3 — list-column alignment + reproducible build
 
 - **Fixed:** list-column alignment on the shelter screen and daily-results screen. The

@@ -201,7 +201,40 @@ columns).
 
 ---
 
-## 8. Message-box dialogs (the font-profile fix)
+## 8. Tiled (`wrap = 1`) skill bitmaps
+
+The skill progress/cost controls on the character screens are `fbItemBitmapCtrl`s
+with `wrap = 1` — the bitmap **tiles** across the control (a `wrap = 0` control
+stretches instead; see §6). At stock, each control's extent equals its bitmap, so
+each renders as exactly one tile. The GUI scaler doubles the extents; if the
+bitmap stays at 1× the tile **count** doubles — the "double rows of tiny red
+marks" bug seen first on `CharScreen`, then on `CharCreationScreen`.
+
+The three affected textures (2× replacements generated in place, same path):
+
+| Bitmap | Stock | 2× | Used by |
+|---|---|---|---|
+| `panels/CharScreen_Skill_Progress1080.png` | 210×23 | 420×46 | `CS_Skill0-7_Progress` (level-up screen) |
+| `panels/CharCreationScreen_Skill_Progress900.png` | 219×23 | 438×46 | `CCS_Skill0-7_Progress`, `CCS_Final_Skill0-7_Progress` |
+| `panels/CharCreationScreen_Skill_Cost_900.png` | 219×19 | 438×38 | `CCS_Skill0-7_Cost` |
+
+(`CCS_Skill*_Progress` has `extent = "0 22"` — the engine sets the bar width at
+runtime, same as on CharScreen, where the 2× texture alone was confirmed to fix
+the fill.)
+
+**Audit (all 63 loaded GUIs):** these three are the only `wrap = 1` file bitmaps
+that render as a single tile at stock. The remaining `wrap = 1` users are flat
+translucent shade scrims (`black_semi_dark.png`, `shade.png`) behind popups —
+uniform-color overlays that tile seamlessly at any tile count, visually identical
+at 4K, deliberately left at 1×. (`panels/progressBar`, referenced by the dev-only
+`AI_Analyzer` screen, is missing from the archive even at stock.)
+
+The generator reads these sources from `gui.aod.bak`, so repeated builds remain
+idempotent and never upscale an already-fixed asset again.
+
+---
+
+## 9. Message-box dialogs (the font-profile fix)
 
 The stock T3D message-box dialogs (`MessageBoxYesNoDlg`, `…Ok`, `…YesNoCancel`,
 `…OkCancel`, in `core/scripts/gui/messageBoxes/*.ed.gui`) are a **separate system**
