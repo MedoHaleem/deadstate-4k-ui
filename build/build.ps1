@@ -6,7 +6,9 @@
     Rebuilds every part of the mod from a stock (factory) Dead State install:
       1. Backs up art/gui.aod -> art/gui.aod.bak (originals source for the scaler).
       2. Applies the Large Address Aware flag to ZRPG.exe (patch_laa.py).
-      3. Builds the d3d9 proxy DLL (tcc) from src/proxy/d3d9_proxy.c.
+      3. Builds the d3d9 proxy DLL (tcc) from src/proxy/d3d9_proxy.c — the
+         affinity cap + always-on borderless-windowed force — then strips
+         tcc's decorated export names via src/proxy/undecorate_exports.ps1.
       4. 2x-scales the GUI layout files (scale_guis.ps1 + scale_guis_retry.ps1).
       5. 2x-scales the engine font profiles (decompile -> scale -> compile).
       6. Applies the message-box font fix: compiles the scaled game profiles
@@ -103,14 +105,17 @@ if (Test-Step "LAA") {
 # --- Step 3: Build proxy DLL ------------------------------------------------
 if (Test-Step "Proxy") {
     $proxySrc  = Join-Path $repoRoot "src\proxy\d3d9_proxy.c"
+    $undec     = Join-Path $repoRoot "src\proxy\undecorate_exports.ps1"
     $proxyDll  = Join-Path $GameDir "d3d9.dll"
     if ($Tcc -and (Test-Path $Tcc)) {
-        Write-Step 3 "Building d3d9 proxy DLL with tcc"
-        & $Tcc -shared -o $proxyDll $proxySrc -lkernel32
+        Write-Step 3 "Building d3d9 proxy DLL with tcc (affinity + borderless)"
+        & $Tcc -shared -o $proxyDll $proxySrc -lkernel32 -luser32
         if ($LASTEXITCODE -ne 0) { throw "Proxy build failed." }
-        Write-Host "  Built $proxyDll" -ForegroundColor Green
-        Write-Host "  NOTE: tcc emits stdcall-decorated export names (_Direct3DCreate9@4 etc.)." -ForegroundColor Yellow
-        Write-Host "        The prebuilt build/d3d9.dll has undecorated names; see docs/BUILD.md." -ForegroundColor Yellow
+        # tcc emits stdcall-decorated exports (_Direct3DCreate9@4); the game's
+        # import table needs bare names. Verified: tcc + this script reproduces
+        # the shipped d3d9.dll byte-for-byte (MD5 FEDCA9D8B867464AF76BC07020758CDA).
+        & powershell -NoProfile -File $undec $proxyDll
+        Write-Host "  Built + undecorated $proxyDll" -ForegroundColor Green
     } else {
         Write-Step 3 "Copying prebuilt d3d9 proxy DLL (tcc not provided)"
         $prebuilt = Join-Path $repoRoot "build\d3d9.dll"

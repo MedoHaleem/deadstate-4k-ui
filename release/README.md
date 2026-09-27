@@ -1,7 +1,8 @@
 # Dead State — 4K UI Scaling Mod
 
-Makes the entire Dead State UI readable at 3840×2160 (4K), and fixes the multi-core
-launch crash on modern CPUs. **Manual install** — no scripts, just copy files.
+Makes the entire Dead State UI readable at 3840×2160 (4K), forces **borderless
+fullscreen windowed** (instant alt-tab), and fixes the multi-core launch crash on
+modern CPUs. **Manual install** — no scripts, just copy files.
 
 > **Extracting the download:** the mod is distributed as a `.7z` archive for a smaller
 > download. Extract it with **[7-Zip](https://www.7-zip.org/)** (free) before installing —
@@ -12,7 +13,7 @@ launch crash on modern CPUs. **Manual install** — no scripts, just copy files.
 
 ## ⚠️ Before you start: back up your game
 
-This mod replaces a few of the game's original files. **You only need to back up these 4
+This mod replaces a few of the game's original files. **You only need to back up these 8
 files** (the ones the mod overwrites). Copy them somewhere safe (e.g. a `backup` folder on
 your Desktop) so you can restore the original game later:
 
@@ -22,6 +23,10 @@ your Desktop) so you can restore the original game later:
 | `art\gui.aod` | inside `art\` |
 | `core\art\gui\profiles.cs.dso` | inside `core\art\gui\` |
 | `core\art\gui\optionsDlg.gui.dso` | inside `core\art\gui\` |
+| `core\scripts\gui\messageBoxes\messageBoxOk.ed.gui.edso` | inside `core\scripts\gui\messageBoxes\` |
+| `core\scripts\gui\messageBoxes\messageBoxOkCancel.ed.gui.edso` | inside `core\scripts\gui\messageBoxes\` |
+| `core\scripts\gui\messageBoxes\messageBoxYesNo.ed.gui.edso` | inside `core\scripts\gui\messageBoxes\` |
+| `core\scripts\gui\messageBoxes\messageBoxYesNoCancel.ed.gui.edso` | inside `core\scripts\gui\messageBoxes\` |
 
 > The 12 files in this mod's `art\gui\` folder do **not** exist in the original game, so
 > there's nothing to back up for those — they're added by the mod (see Uninstall below to
@@ -42,14 +47,17 @@ your Desktop) so you can restore the original game later:
    - Copy the **`art`** folder → into the Dead State root (merge). This replaces `art\gui.aod`
      and adds the 12 `.gui.dso` files in `art\gui\`.
    - Copy the **`core`** folder → into the Dead State root (merge). This replaces
-     `core\art\gui\profiles.cs.dso` and `core\art\gui\optionsDlg.gui.dso`.
+     `core\art\gui\profiles.cs.dso`, `core\art\gui\optionsDlg.gui.dso`, and the 4
+     `messageBox*.ed.gui.edso` files in `core\scripts\gui\messageBoxes\`.
 4. Launch the game via Steam as normal.
 
 **That's it.** No launch options, no `.bat` file. The `d3d9.dll` proxy handles the multi-core
-crash fix automatically.
+crash fix **and** always-on borderless windowed automatically.
 
 In-game, go to **Options → Graphics** and set the resolution to **3840×2160** to see the
-4K-scaled UI.
+4K-scaled UI. Leave fullscreen **on** in the mode string if prompted — the proxy converts
+the D3D device to borderless windowed; flipping the game to true windowed mode can
+downscale the UI (engine guard).
 
 > **Tip:** To merge folders easily in Windows, drag the `art` and `core` folders onto the
 > Dead State folder. Windows will ask "Replace or skip files?" / "Merge?" — choose
@@ -59,11 +67,11 @@ In-game, go to **Options → Graphics** and set the resolution to **3840×2160**
 
 ## Uninstall (restore the original game)
 
-1. Restore your **4 backed-up files** to their original locations (overwrite the modded ones):
+1. Restore your **8 backed-up files** to their original locations (overwrite the modded ones):
    - `ZRPG.exe` → Dead State root
    - `art\gui.aod` → inside `art\`
-   - `core\art\gui\profiles.cs.dso` → inside `core\art\gui\`
-   - `core\art\gui\optionsDlg.gui.dso` → inside `core\art\gui\`
+   - `core\art\gui\profiles.cs.dso` and `core\art\gui\optionsDlg.gui.dso` → inside `core\art\gui\`
+   - the 4 `messageBox*.ed.gui.edso` files → inside `core\scripts\gui\messageBoxes\`
 2. Delete the mod's proxy DLL from the Dead State root:
    - `d3d9.dll`
 3. Delete the 12 mod-added GUI files from `art\gui\`:
@@ -95,12 +103,17 @@ removes any mod-added ones automatically.)
   font profile so text fits inside the box at 4K (fixed; previously overflowed).
 - **Aligned list columns** — `GuiTextListCtrl` column offsets (shelter job board, daily results,
   shelter screen) are scaled to match the 2×-spaced headers (fixed; previously misaligned).
-- **54 high-resolution texture variants** (`_1800`) for the party panel, AP pips, and noise meter,
-  plus the 2× skill progress/cost bitmaps used by the character and character-creation screens.
+- **Fixed skill bars** — the skill progress/cost bars on the character (level-up) screen and
+  the character-creation screen rendered as double rows of tiny marks; their bitmaps now ship
+  at 2× to match the scaled bars (fixed; previously tiled).
+- **54 high-resolution texture variants** (`_1800`) for the party panel, AP pips, and noise meter.
 - **1 panel background re-rendered at 4K** (`DS_options_screen_bg`).
-- **>4-core launch crash fix** — a 2 KB proxy `d3d9.dll` caps process affinity to cores 0–3
+- **>4-core launch crash fix** — a proxy `d3d9.dll` caps process affinity to cores 0–3
   before the engine's crashing CPU enumeration runs. Works on any launch path (Steam,
   shortcut, or the exe directly).
+- **Borderless fullscreen windowed (always-on)** — same proxy forces a windowed D3D9
+  swap chain at full 4K and restyles the game window to fill the primary monitor with
+  no title bar. Alt-tab is instant; 4K UI stays intact. No toggle / no Options UI.
 - **4 GB Large Address Aware patch** on `ZRPG.exe` for stability with larger textures.
 
 ## Requirements
@@ -117,6 +130,9 @@ removes any mod-added ones automatically.)
 |---|---|
 | Game crashes on launch (many-core CPU) | Confirm `d3d9.dll` is in the Dead State root next to `ZRPG.exe`. |
 | Text still tiny | Set resolution to 3840×2160 in Options → Graphics. |
+| UI collapsed to ~900p after trying windowed | Restore `$pref::Video::mode` to `"3840 2160 true 32 75 2"` in `%USERPROFILE%\Documents\My Games\Dead State\prefs.cs` (or restore `prefs.cs.preBorderless` if present). Keep the mode's fullscreen bit `true` — the proxy handles borderless. |
+| Not borderless / still exclusive FS | Confirm you have the **current** mod `d3d9.dll` (not an older affinity-only build). |
+| Skill bars show tiny doubled marks | You have an older mod `art\gui.aod` — re-copy the one from this archive. |
 | Want a clean slate | Use Steam → Right-click Dead State → Properties → Installed Files → **Verify integrity of game files**, then reinstall the mod. |
 
 > **Known issue (not fixed by this mod):** dropdown selected-text remains invisible in
@@ -131,6 +147,7 @@ removes any mod-added ones automatically.)
   profile was decompiled from the game's compiled `.dso` files, edited, and recompiled using
   Untorque. Many thanks to the author for releasing this essential tool.
 - `ZRPG.exe` is patched only with the Large Address Awareness flag (allows >2GB RAM). The
-  d3d9 proxy forwards Direct3D9 to the real system `d3d9.dll` after setting process affinity —
-  it does not modify the real `d3d9.dll` or your GPU drivers.
+  d3d9 proxy forwards Direct3D9 to the real system `d3d9.dll` after setting process affinity
+  and forcing borderless windowed presentation — it does not modify the real `d3d9.dll` or
+  your GPU drivers.
 - Does not touch your saves, settings (`prefs.cs`), or Steam.

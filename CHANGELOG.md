@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v4 — skill-bar fix + always-on borderless
 
 - **Fixed:** skill progress/cost bars tiled their stock bitmaps across the
   scaler-expanded controls, producing double rows of tiny red marks — first on
@@ -9,6 +9,17 @@
   for all three affected bitmaps (audited across all 63 loaded GUIs; the only
   other `wrap = 1` bitmaps are flat shade scrims that tile seamlessly and are
   unaffected).
+- **New:** always-on borderless fullscreen windowed. The `d3d9` proxy now also
+  forces a windowed D3D9 swap chain at full 4K and restyles the game window to a
+  titlebar-less full-screen popup — instant alt-tab, no Options toggle. The
+  engine's mode string stays `"3840 2160 true 32 75 2"` (flipping it to windowed
+  trips an engine guard that collapses the UI to ~900p). New vs the published v3.
+- **Repo:** the proxy source is now the ship variant (affinity + borderless) and
+  `src/proxy/undecorate_exports.ps1` (export-name fixer) is committed — tcc +
+  the script reproduce the shipped `d3d9.dll` byte-for-byte
+  (MD5 `FEDCA9D8B867464AF76BC07020758CDA`).
+- **Docs:** shipped README updated — backup/uninstall lists now include the 4
+  message-box dialog files (they replace stock files; previously omitted).
 
 ## v3 — list-column alignment + reproducible build
 

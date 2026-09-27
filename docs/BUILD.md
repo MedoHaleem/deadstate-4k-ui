@@ -108,16 +108,20 @@ This is idempotent and produces a byte-for-byte identical result to the shipped
 
 ### Proxy DLL (optional rebuild)
 
+The proxy does the affinity cap **and** the always-on borderless-windowed force
+(see TECHNICAL §4). Rebuild with tcc 0.9.27, then strip the decorated export
+names:
+
 ```powershell
-C:\tools\tcc\tcc.exe -shared -o d3d9.dll src\proxy\d3d9_proxy.c -lkernel32
+C:\tools\tcc\tcc.exe -shared -o d3d9.dll src\proxy\d3d9_proxy.c -lkernel32 -luser32
+powershell -NoProfile -File src\proxy\undecorate_exports.ps1 d3d9.dll
 ```
 
-> **Export name caveat:** tcc emits stdcall-decorated export names
-> (`_Direct3DCreate9@4`, `_D3DPERF_BeginEvent@8`, etc.). The game's import table
-> expects *undecorated* names (`Direct3DCreate9`). The prebuilt `build\d3d9.dll`
-> has the names rewritten to undecorated (a small post-build PE edit). If you
-> rebuild with tcc, you'll need to do the same rewrite, or the game won't resolve
-> the import. Easiest path: just use the prebuilt `build\d3d9.dll`.
+tcc emits stdcall-decorated exports (`_Direct3DCreate9@4`, …); the game's import
+table expects the bare names, so the script rewrites the four export name strings
+in place. With tcc 0.9.27 these two commands reproduce the committed
+`build\d3d9.dll` **byte-for-byte** (MD5 `FEDCA9D8…`) — verified. Or just use the
+prebuilt `build\d3d9.dll` (the build orchestrator does when `-Tcc` is omitted).
 
 ### Profiles (engine)
 

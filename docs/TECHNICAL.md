@@ -124,18 +124,58 @@ so a proxy `d3d9.dll` placed in the EXE directory (Windows' DLL search order
 favours it over `C:\Windows\System32\d3d9.dll`) runs its `DllMain` before the
 engine's crashing CPU-init.
 
-The proxy (`src/proxy/d3d9_proxy.c`, ~60 lines of C):
+The proxy (`src/proxy/d3d9_proxy.c`, ~250 lines of C) does two jobs — the
+affinity cap and the always-on borderless force (next subsection):
 
 - **`DllMain`** (`DLL_PROCESS_ATTACH`): calls
   `SetProcessAffinityMask(GetCurrentProcess(), 0xF)` — restricts to cores 0–3.
   Non-fatal on failure.
 - **`Direct3DCreate9`**: forwards to the real `C:\Windows\System32\d3d9.dll` via
-  `LoadLibraryA` + `GetProcAddress` (absolute path avoids self-recursion).
+  `LoadLibraryA` + `GetProcAddress` (absolute path avoids self-recursion), then
+  vtable-hooks device creation (below).
 - **`D3DPERF_*`** (3 functions): no-op stubs — these are PIX profiler hooks that are
   no-ops on non-PIX systems anyway.
 
 The proxy does **not** modify the real `d3d9.dll`, your GPU drivers, or anything
 outside the game directory. It forwards the one real graphics call transparently.
+
+### Borderless fullscreen windowed (always-on)
+
+The same proxy makes the game a borderless, titlebar-less window filling the
+primary monitor at full 4K, so alt-tab is instant. There is no toggle; it is
+always on for 4K-mod users, and the proxy is the injection point.
+
+Why it is done at the D3D9 layer and not in prefs/script:
+
+- Flipping `$pref::Video::mode`'s fullscreen bit to `false` hits an engine C++
+  guard (windowed resolution = desktop → auto-downscale to 1440×900, persisted
+  into `prefs.cs`, which collapses the canvas and breaks `_1800` texture
+  selection). The mode string must stay `"3840 2160 true 32 75 2"`.
+- Restyling the HWND of an exclusive-FS D3D9 device alone is a visual no-op —
+  the swap chain still owns the display.
+
+Mechanism: keep the engine believing it is exclusive-FS at 3840×2160, then in the
+D3D9 layer only — vtable-hook `IDirect3D9::CreateDevice` and `IDirect3DDevice9::Reset`,
+force `D3DPRESENT_PARAMETERS.Windowed = TRUE` and `FullScreen_RefreshRateInHz = 0`
+while leaving the backbuffer size alone, and restyle the engine window
+(`TorqueJuggernaughtWindow`) to `WS_POPUP` at primary-monitor bounds. A short
+watcher thread reapplies the restyle for ~6 s after launch (the engine re-touches
+the window briefly; it starts ~132×37 under this path).
+
+Verified: instant alt-tab, clean quit (full shutdown, no freeze regression),
+affinity still `0xF`, 4K UI intact, prefs mode string unchanged.
+
+### Rebuilding the proxy
+
+```
+tcc -shared -o d3d9.dll src\proxy\d3d9_proxy.c -lkernel32 -luser32
+powershell -NoProfile -File src\proxy\undecorate_exports.ps1 d3d9.dll
+```
+
+tcc emits stdcall-decorated exports (`_Direct3DCreate9@4`); the game's import
+table needs the bare names, so `undecorate_exports.ps1` rewrites the four export
+name strings in place. With tcc 0.9.27 this reproduces the shipped
+`build/d3d9.dll` **byte-for-byte** (MD5 `FEDCA9D8B867464AF76BC07020758CDA`).
 
 ### Rendering note (dgVoodoo not required)
 

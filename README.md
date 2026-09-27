@@ -25,10 +25,12 @@ crashing on machines with more than four CPU cores.
    driven by the engine's "texhandle" mechanism (party panel, AP pips, noise meter),
    plus 2× skill progress/cost bitmaps for the character and
    character-creation screens.
-4. **>4-core launch crash fix** — a 2 KB proxy `d3d9.dll` that caps process affinity
+4. **>4-core launch crash fix** — a ~4.5 KB proxy `d3d9.dll` that caps process affinity
    to cores 0–3 before the engine's crashing CPU-enumeration code runs. Works on any
    launch path (Steam, shortcut, or the exe directly).
-5. **4 GB Large Address Aware patch** on `ZRPG.exe` for stability with larger
+5. **Borderless fullscreen windowed (always-on)** — the same proxy forces a windowed
+   4K swap chain and a full-screen popup window: instant alt-tab, no Options toggle.
+6. **4 GB Large Address Aware patch** on `ZRPG.exe` for stability with larger
    textures.
 
 See [`docs/TECHNICAL.md`](docs/TECHNICAL.md) for the engine internals behind each fix.
@@ -39,12 +41,12 @@ See [`docs/TECHNICAL.md`](docs/TECHNICAL.md) for the engine internals behind eac
 
 | Path | What it is |
 |---|---|
-| [`src/proxy/`](src/proxy/) | C source for the `d3d9` proxy DLL (the core-crash fix) + a load test. |
+| [`src/proxy/`](src/proxy/) | C source for the `d3d9` proxy DLL (core-crash fix + borderless force), the export-name undecorator, + a load test. |
 | [`src/scaling/`](src/scaling/) | The scaling engine: GUI layout scaler, texture generator, and the LAA patcher. |
 | [`src/profiles/`](src/profiles/) | The 2×-scaled game-profiles source (with the mod's `SegoePrint_Left_MsgBox` profile). |
 | [`src/msgbox/`](src/msgbox/) | The four message-box dialogs repointed to the dedicated font profile. |
 | [`build/build.ps1`](build/build.ps1) | One-shot orchestrator that rebuilds the whole mod from a stock install. |
-| [`build/d3d9.dll`](build/d3d9.dll) | Prebuilt proxy DLL (2 KB — the only committed binary; rebuildable from source). |
+| [`build/d3d9.dll`](build/d3d9.dll) | Prebuilt proxy DLL (4.5 KB — the only committed binary; rebuildable byte-for-byte from source). |
 | [`docs/BUILD.md`](docs/BUILD.md) | How to build everything from source (prerequisites + step-by-step). |
 | [`docs/TECHNICAL.md`](docs/TECHNICAL.md) | Engine/reverse-engineering notes: why each fix is needed and how it works. |
 | [`release/README.md`](release/README.md) | The end-user install guide shipped inside the mod archive. |
